@@ -1,0 +1,10 @@
+config TRUSTED_LITTLE_KERNEL
+	bool "Enable Open Trusted Execution driver"
+	depends on ARM || ARM64
+	select TEGRA_USE_SECURE_KERNEL
+	select FIQ
+	select FIQ_GLUE
+	help
+	  This option adds kernel support for communication with the
+	  Trusted LK secure OS monitor/runtime support.
+	  If you are unsure how to answer this question, answer N.

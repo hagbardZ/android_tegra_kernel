@@ -1,0 +1,37 @@
+Tegra210 External Memory Controller
+
+Properties:
+- compatible : Should contain "nvidia,tegra20-emc".
+- reg : Should contain 3 register ranges. The EMC register range and per
+  channel EMC0/EMC1 register ranges.
+- #address-cells : Should be 2
+- #size-cells : Should be 2
+- clocks : phandle to EMC, EMC shared bus override, and all parent clocks.
+- clock-names : name of each clock.
+- #thermal-sensor-cells: Should be 0
+- ranges : Should be an empty property to indicate identity mapping translation.
+- max-clock-frequency : optional, specifies the maximum EMC rate in kHz.
+- has-derated-table : optional, an empty property to indicate there will be
+  derated tables.
+
+Example:
+	memory-controller@7001b000 {
+		compatible = "nvidia,tegra210-emc";
+		reg = <0x0 0x7001b000 0x0 0x1000>,
+		      <0x0 0x7001e000 0x0 0x1000>,
+		      <0x0 0x7001f000 0x0 0x1000>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		clocks = <&tegra_car TEGRA210_CLK_EMC>,
+			 <&tegra_car TEGRA210_CLK_PLL_M>,
+			 <&tegra_car TEGRA210_CLK_PLL_C>,
+			 <&tegra_car TEGRA210_CLK_PLL_P>,
+			 <&tegra_car TEGRA210_CLK_CLK_M>,
+			 <&tegra_car TEGRA210_CLK_PLL_MB>,
+			 <&tegra_car TEGRA210_CLK_OVERRIDE_EMC>;
+		clock-names = "emc", "pll_m", "pll_c", "pll_p", "clk_m",
+			"pll_mb", "emc_override";
+		#thermal-sensor-cells = <0>;
+		ranges;
+	};
+

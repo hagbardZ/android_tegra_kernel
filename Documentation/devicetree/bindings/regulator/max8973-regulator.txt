@@ -1,0 +1,59 @@
+* Maxim MAX8973 and MAX77621 Voltage Regulators
+
+Required properties:
+
+- compatible:	must be "maxim,max8973" or "maxim,max77621"
+- reg:		the i2c slave address of the regulator. It should be 0x1b for
+		max8973.  It may be 0x1b or 0x1c for max77621.
+
+Any standard regulator properties can be used to configure the single max8973
+or max77621 DCDC.
+
+Optional properties:
+- interrupts: Junction temperature warning interrupt, it will be triggered at
+		120 degrees C.
+		Interrupt number can be provided as detailed on
+	Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+-maxim,externally-enable: boolean, externally control the regulator output
+		enable/disable.  Otherwise, enable/disable via I2C registers.
+-maxim,enable-gpios: gpio, can be provided to configure a gpio for the
+		enable/shutdown pin.  If "maxim,externally-enable" is NOT set,
+		the pin will be set to a non-interfering state so that I2C
+		registers control the regulator enabling/disabling.
+			- max8973: Has enable pin.  Will be set LOW if
+				provided and no "maxim,externally-enable"
+			- max77621: Has enable pin or shutdown pin.  Will be set
+				HIGH if provided and no "maxim,externally,enable"
+-maxim,dvs-gpios: GPIO which is connected to DVS pin of device.
+-maxim,dvs-default-state: Default state of GPIO during initialisation.
+		1 for HIGH and 0 for LOW.
+-maxim,enable-remote-sense: boolean, enable remote sense.
+-maxim,enable-falling-slew-rate: boolean, enable falling slew rate.
+-maxim,enable-active-discharge: boolean: enable active discharge.
+-maxim,enable-frequency-shift: boolean, enable 9% frequency shift.
+-maxim,enable-bias-control: boolean, enable bias control. By enabling this
+		startup delay can be reduce to 20us from 220us.
+-maxim,enable-etr: boolean, enable Enhanced Transient Response.
+-maxim,enable-high-etr-sensitivity: boolean, Enhanced transient response
+		circuit is enabled and set for high sensitivity. If this
+		property is available then etr will be enable default.
+-maxim,pull-down-enable: boolean, enable pull-down to disable discharge
+-maxim,disable-junction-temp: boolean, disable junction temperature interrupt
+-maxim,inductor-value: Set inductor value. Values defined in max8973.h.
+		possible options: nominal, minus_30, plus_30, plus 60
+-maxim,watchdog-timer-enable: boolean, I2C watchdog timer enable. default is
+		disabled
+
+Enhanced transient response (ETR) will affect the configuration of CKADV.
+
+Example:
+
+	max8973@1b {
+		compatible = "maxim,max8973";
+		reg = <0x1b>;
+
+		regulator-min-microvolt = <935000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};

@@ -1,0 +1,237 @@
+NVIDIA Tegra Power Management Controller (PMC)
+
+The PMC block interacts with an external Power Management Unit. The PMC
+mostly controls the entry and exit of the system from different sleep
+modes. It provides power-gating controllers for SoC and CPU power-islands.
+
+Required properties:
+- name : Should be pmc
+- compatible : Should contain "nvidia,tegra<chip>-pmc".
+- reg : Offset and length of the register set for the device
+- clocks : Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names : Must include the following entries:
+  "pclk" (The Tegra clock of that name),
+  "clk32k_in" (The 32KHz clock input to Tegra).
+
+Optional properties:
+- nvidia,invert-interrupt : If present, inverts the PMU interrupt signal.
+  The PMU is an external Power Management Unit, whose interrupt output
+  signal is fed into the PMC. This signal is optionally inverted, and then
+  fed into the ARM GIC. The PMC is not involved in the detection or
+  handling of this interrupt signal, merely its inversion.
+- nvidia,suspend-mode : The suspend mode that the platform should use.
+  Valid values are 0, 1 and 2:
+  0 (LP0): CPU + Core voltage off and DRAM in self-refresh
+  1 (LP1): CPU voltage off and DRAM in self-refresh
+  2 (LP2): CPU voltage off
+- nvidia,core-power-req-active-high : Boolean, core power request active-high
+- nvidia,sys-clock-req-active-high : Boolean, system clock request active-high
+- nvidia,combined-power-req : Boolean, combined power request for CPU & Core
+- nvidia,cpu-pwr-good-en : Boolean, CPU power good signal (from PMIC to PMC)
+			   is enabled.
+- nvidia,pmc-clk1-out-en : Boolean, keep the PMC clk1 output still avaiable
+			   during suspend phase.
+- nvidia,pmc-clk1-out-src : It should be the value below to indicate the clock
+			    source.
+			    PMC_CLK_OUT_SRC_OSC, PMC_CLK_OUT_SRC_OSC_DIV_2,
+			    PMC_CLK_OUT_SRC_OSC_DIV_4
+
+Required properties when nvidia,suspend-mode is specified:
+- nvidia,cpu-pwr-good-time : CPU power good time in uS.
+- nvidia,cpu-pwr-off-time : CPU power off time in uS.
+- nvidia,core-pwr-good-time : <Oscillator-stable-time Power-stable-time>
+			      Core power good time in uS.
+- nvidia,core-pwr-off-time : Core power off time in uS.
+
+Required properties when nvidia,suspend-mode=<0>:
+- nvidia,lp0-vec : <start length> Starting address and length of LP0 vector
+  The LP0 vector contains the warm boot code that is executed by AVP when
+  resuming from the LP0 state. The AVP (Audio-Video Processor) is an ARM7
+  processor and always being the first boot processor when chip is power on
+  or resume from deep sleep mode. When the system is resumed from the deep
+  sleep mode, the warm boot code will restore some PLLs, clocks and then
+  bring up CPU0 for resuming the system.
+
+Hardware-triggered thermal reset:
+On Tegra30, Tegra114 and Tegra124, if the 'i2c-thermtrip' subnode exists,
+hardware-triggered thermal reset will be enabled.
+
+Required properties for hardware-triggered thermal reset (inside 'i2c-thermtrip'):
+- nvidia,i2c-controller-id : ID of I2C controller to send poweroff command to. Valid values are
+                             described in section 9.2.148 "APBDEV_PMC_SCRATCH53_0" of the
+                             Tegra K1 Technical Reference Manual.
+- nvidia,bus-addr : Bus address of the PMU on the I2C bus
+- nvidia,reg-addr : I2C register address to write poweroff command to
+- nvidia,reg-data : Poweroff command to write to PMU
+
+Optional properties for hardware-triggered thermal reset (inside 'i2c-thermtrip'):
+- nvidia,pinmux-id : Pinmux used by the hardware when issuing poweroff command.
+                     Defaults to 0. Valid values are described in section 12.5.2
+                     "Pinmux Support" of the Tegra4 Technical Reference Manual.
+
+Example:
+
+/ SoC dts including file
+pmc@7000f400 {
+	compatible = "nvidia,tegra20-pmc";
+	reg = <0x7000e400 0x400>;
+	clocks = <&tegra_car 110>, <&clk32k_in>;
+	clock-names = "pclk", "clk32k_in";
+	nvidia,invert-interrupt;
+	nvidia,suspend-mode = <1>;
+	nvidia,cpu-pwr-good-time = <2000>;
+	nvidia,cpu-pwr-off-time = <100>;
+	nvidia,core-pwr-good-time = <3845 3845>;
+	nvidia,core-pwr-off-time = <458>;
+	nvidia,core-power-req-active-high;
+	nvidia,sys-clock-req-active-high;
+	nvidia,lp0-vec = <0xbdffd000 0x2000>;
+	nvidia,pmc-clk1-out-en;
+	nvidia,pmc-clk1-out-src = <PMC_CLK_OUT_SRC_OSC_DIV_2>;
+};
+
+/ Tegra board dts file
+{
+	...
+	pmc@7000f400 {
+		i2c-thermtrip {
+			nvidia,i2c-controller-id = <4>;
+			nvidia,bus-addr = <0x40>;
+			nvidia,reg-addr = <0x36>;
+			nvidia,reg-data = <0x2>;
+		};
+	};
+	...
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock {
+			compatible = "fixed-clock";
+			reg=<0>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+	...
+};
+
+Wake up events
+
+The PMC is the only device that can wake up the system from deep sleep
+mode (i.e. LP0). There are some wake up events in the PMC wake mask
+register that can be used to trigger PMC to wake up the system. The PMC
+wake mask register defines which devices or siganls can be the source to
+trigger the PMC waking up. If the devices support waking up the system
+from deep sleep mode, then it needs to describe a property for PMC wake
+up events. This property defines the usage.
+
+Required properties when nvidia,suspend-mode=<0>:
+- nvidia,pmc-wakeup : <pmc_phandle event_type event_offset trigger_type>
+		     pmc_phandle: the phandle of PMC device tree node
+		     event_type: 0 = PMC_WAKE_TYPE_GPIO
+				 1 = PMC_WAKE_TYPE_EVENT
+		     event_offset: the offset of PMC wake mask register
+		     trigger_type: set 0 when event_type is PMC_WAKE_TYPE_GPIO
+				   if event_type is PMC_WAKE_TYPE_EVENT
+				   0 = PMC_TRIGGER_TYPE_NONE
+				   1 = PMC_TRIGGER_TYPE_RISING
+				   2 = PMC_TRIGGER_TYPE_FALLING
+				   4 = PMC_TRIGGER_TYPE_HIGH
+				   8 = PMC_TRIGGER_TYPE_LOW
+		     The assignments of event_type and trigger_type could be
+		     found in header file <dt-bindings/soc/tegra-pmc.h>.
+- #nvidia,wake-cells : should be 3
+
+Example:
+
+/ SoC dts including file
+pmc: pmc {
+	compatible = "nvidia,tegra114-pmc";
+	reg = <0x7000e400 0x400>;
+	clocks = <&tegra_car 261>, <&clk32k_in>;
+	clock-names = "pclk", "clk32k_in";
+};
+
+/ Tegra board dts file
+{
+	...
+	pmc {
+		...
+		nvidia,suspend-mode = <0>;
+		#nvidia,wake-cells = <3>;
+		...
+	};
+	...
+	pmic {
+		...
+		nvidia,pmc-wakeup = <&pmc
+				PMC_WAKE_TYPE_EVENT 18 PMC_TRIGGER_TYPE_LOW>;
+		...
+	};
+	...
+	gpio-keys {
+		power {
+			...
+			nvidia,pmc-wakeup = <&pmc
+				PMC_WAKE_TYPE_GPIO 16 PMC_TRIGGER_TYPE_NONE>;
+			...
+		};
+	};
+};
+
+BootROM I2C commands:
+
+On Tegra210, a set of I2C commands can be programmed into the PMC scratch
+registers that will be executed by the BootROM on warm reset.  This can be
+used to ensure that various voltage rails are re-initialized to safe levels.
+These commands are described in the "bootrom-i2c" sub-node.
+
+Optional properties for bootrom-i2c sub-node:
+- nvidia,bus-clear-delay : Delay in us before sending an I2C bus clear.
+  Default is 500us.
+- nvidia,transfer-delay : Delay in us between independent I2C transfers.
+  Default is 500us.
+- nvidia,transfer-retries : Maximum number of retries for a particular I2C
+  command.  Default is 1.
+
+Command blocks are described in sub-nodes of the bootrom-i2c node.  Command
+block sub-nodes must be named "command-block-<n>", with n starting at 0.
+Up to 7 command blocks may be specified and up to 63 register address/value
+pairs may be specified per command block.
+
+Required properties for command-block sub-nodes:
+- nvidia,i2c-controller-id : ID of I2C controller to send I2C commands to.
+- nvidia,bus-addr : Bus address of the I2C device to write to.
+- nvidia,reg-addr : Array of registers to write to.
+- nvidia,reg-data : Array of values to write into the corresponding registers.
+
+Optional properties for command-block sub-nodes:
+- nvidia,16-bit-addr : Indicates that the I2C register addresses are 16-bits
+  wide.  Otherwise, register address/data are assumed to be 8-bits.
+- nvidia,pinmux-id : Pinmux used by the hardware when issuing I2C commands.
+                     Defaults to 0. Valid values are described in section 13.6.2
+                     "Pinmux Support" of the TegraX1 Technical Reference Manual.
+
+Example:
+
+/ Tegra board dts file
+{
+	...
+	pmc@7000f400 {
+		...
+		bootrom-i2c {
+			nvidia,transfer-delay = <500>;
+
+			command-block-0 {
+				nvidia,i2c-controller-id = <4>;
+				nvidia,pinmux-id = <0>;
+				nvidia,bus-addr = <0x3c>;
+				nvidia,reg-addr-0 = <0x16>;
+				nvidia,reg-data-0 = <0x20>;
+			};
+		};
+	};
+};

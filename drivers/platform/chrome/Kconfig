@@ -1,0 +1,69 @@
+#
+# Platform support for Chrome OS hardware (Chromebooks and Chromeboxes)
+#
+
+menuconfig CHROME_PLATFORMS
+	bool "Platform support for Chrome hardware"
+	---help---
+	  Say Y here to get to see options for platform support for
+	  various Chromebooks and Chromeboxes. This option alone does
+	  not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if CHROME_PLATFORMS
+
+config CHROMEOS
+	bool
+	depends on CHROMEOS_OF_FIRMWARE || (NVRAM && ACPI_CHROMEOS)
+
+	---help---
+	  Provides abstracted interfaces to the firmware features provided on
+	  ChromeOS devices. It depends on a lowlevel driver to implement the
+	  firmware interface on the platform.
+
+config CHROMEOS_OF_FIRMWARE
+	bool "ChromeOS firmware interface driver"
+	depends on OF
+	select CHROMEOS
+	select CHROMEOS_VBC_EC
+	---help---
+	  This driver provides an interface to ChromeOS firmware.
+
+	  Say Y here if you are building for a ChromeOS device.
+
+config CHROMEOS_LAPTOP
+	tristate "Chrome OS Laptop"
+	depends on I2C && DMI && X86
+	---help---
+	  This driver instantiates i2c and smbus devices such as
+	  light sensors and touchpads.
+
+	  If you have a supported Chromebook, choose Y or M here.
+	  The module will be called chromeos_laptop.
+
+config CHROMEOS_PSTORE
+	tristate "Chrome OS pstore support"
+	depends on X86
+	---help---
+	  This module instantiates the persistent storage on x86 ChromeOS
+	  devices. It can be used to store away console logs and crash
+	  information across reboots.
+
+	  The range of memory used is 0xf00000-0x1000000, traditionally
+	  the memory used to back VGA controller memory.
+
+	  If you have a supported Chromebook, choose Y or M here.
+	  The module will be called chromeos_pstore.
+
+config CHROMEOS_VBC_EC
+	bool
+	depends on CHROMEOS
+	select MFD_CROS_EC
+
+	---help---
+	  Provides access to vboot context stored on EC's nvram.  Select this
+	  if you have a ChromeOS firmware that supports storing vboot context
+	  in EC's nvram.
+
+endif # CHROMEOS_PLATFORMS
